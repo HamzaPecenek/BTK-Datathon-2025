@@ -1,0 +1,705 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "1bf39e84",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:10:59.063531Z",
+     "iopub.status.busy": "2025-08-26T10:10:59.063217Z",
+     "iopub.status.idle": "2025-08-26T10:11:03.292652Z",
+     "shell.execute_reply": "2025-08-26T10:11:03.291528Z"
+    },
+    "papermill": {
+     "duration": 4.236421,
+     "end_time": "2025-08-26T10:11:03.294533",
+     "exception": false,
+     "start_time": "2025-08-26T10:10:59.058112",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "from sklearn.compose import ColumnTransformer\n",
+    "from sklearn.preprocessing import OneHotEncoder\n",
+    "from sklearn.pipeline import Pipeline\n",
+    "from sklearn.ensemble import HistGradientBoostingRegressor\n",
+    "from sklearn.metrics import mean_squared_error\n",
+    "\n",
+    "pd.set_option(\"display.width\", 120)\n",
+    "pd.set_option(\"display.max_columns\", 120)\n",
+    "RANDOM_STATE = 42\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "74da744c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:03.302848Z",
+     "iopub.status.busy": "2025-08-26T10:11:03.302329Z",
+     "iopub.status.idle": "2025-08-26T10:11:04.499960Z",
+     "shell.execute_reply": "2025-08-26T10:11:04.498728Z"
+    },
+    "papermill": {
+     "duration": 1.203865,
+     "end_time": "2025-08-26T10:11:04.502095",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:03.298230",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "((141219, 7), (62951, 6), (30789, 2))"
+      ]
+     },
+     "execution_count": 2,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "DATA_DIR = \"/kaggle/input/datathon-2025\"\n",
+    "TRAIN_PATH = f\"{DATA_DIR}/train.csv\"\n",
+    "TEST_PATH  = f\"{DATA_DIR}/test.csv\"\n",
+    "SAMPLE_PATH = f\"{DATA_DIR}/sample_submission.csv\"\n",
+    "\n",
+    "train = pd.read_csv(TRAIN_PATH)\n",
+    "test  = pd.read_csv(TEST_PATH)\n",
+    "sample = pd.read_csv(SAMPLE_PATH)\n",
+    "\n",
+    "for df in (train, test):\n",
+    "    df[\"event_time\"] = pd.to_datetime(df[\"event_time\"], utc=True, errors=\"coerce\")\n",
+    "\n",
+    "train.shape, test.shape, sample.shape\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "277a0631",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:04.512406Z",
+     "iopub.status.busy": "2025-08-26T10:11:04.511975Z",
+     "iopub.status.idle": "2025-08-26T10:11:04.524125Z",
+     "shell.execute_reply": "2025-08-26T10:11:04.522352Z"
+    },
+    "papermill": {
+     "duration": 0.019952,
+     "end_time": "2025-08-26T10:11:04.526004",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:04.506052",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Train time range: 2025-06-01 00:00:24+00:00 → 2025-06-21 23:59:52+00:00\n",
+      "Test  time range: 2025-06-22 00:01:00+00:00 → 2025-06-30 23:59:47+00:00\n"
+     ]
+    }
+   ],
+   "source": [
+    "print(\"Train time range:\", train[\"event_time\"].min(), \"→\", train[\"event_time\"].max())\n",
+    "print(\"Test  time range:\", test[\"event_time\"].min(),  \"→\", test[\"event_time\"].max())\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "19c06f60",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:04.535914Z",
+     "iopub.status.busy": "2025-08-26T10:11:04.535293Z",
+     "iopub.status.idle": "2025-08-26T10:11:04.555043Z",
+     "shell.execute_reply": "2025-08-26T10:11:04.553676Z"
+    },
+    "papermill": {
+     "duration": 0.027161,
+     "end_time": "2025-08-26T10:11:04.556833",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:04.529672",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def build_session_features_v2(df: pd.DataFrame, is_train: bool):\n",
+    "    tmp = df.copy().sort_values([\"user_session\",\"event_time\"], kind=\"mergesort\")\n",
+    "    # flags\n",
+    "    tmp[\"is_view\"]        = (tmp[\"event_type\"]==\"VIEW\").astype(int)\n",
+    "    tmp[\"is_add_cart\"]    = (tmp[\"event_type\"]==\"ADD_CART\").astype(int)\n",
+    "    tmp[\"is_remove_cart\"] = (tmp[\"event_type\"]==\"REMOVE_CART\").astype(int)\n",
+    "    tmp[\"is_buy\"]         = (tmp[\"event_type\"]==\"BUY\").astype(int)\n",
+    "\n",
+    "    # per-session aggregates\n",
+    "    sess = tmp.groupby(\"user_session\").agg(\n",
+    "        first_time=(\"event_time\",\"min\"),\n",
+    "        last_time =(\"event_time\",\"max\"),\n",
+    "        n_events  =(\"event_type\",\"size\"),\n",
+    "        n_view    =(\"is_view\",\"sum\"),\n",
+    "        n_add     =(\"is_add_cart\",\"sum\"),\n",
+    "        n_remove  =(\"is_remove_cart\",\"sum\"),\n",
+    "        n_buy     =(\"is_buy\",\"sum\"),\n",
+    "        n_products=(\"product_id\", pd.Series.nunique),\n",
+    "        n_categories=(\"category_id\", pd.Series.nunique),\n",
+    "        last_event_type=(\"event_type\",\"last\"),\n",
+    "    ).reset_index()\n",
+    "\n",
+    "    # basic time features\n",
+    "    sess[\"duration_sec\"] = (sess[\"last_time\"] - sess[\"first_time\"]).dt.total_seconds().fillna(0)\n",
+    "    sess[\"hour_first\"]   = sess[\"first_time\"].dt.hour\n",
+    "    sess[\"hour_last\"]    = sess[\"last_time\"].dt.hour\n",
+    "    sess[\"wday_first\"]   = sess[\"first_time\"].dt.weekday  # 0=Mon\n",
+    "    sess[\"wday_last\"]    = sess[\"last_time\"].dt.weekday\n",
+    "\n",
+    "    # ratios & cart pressure\n",
+    "    denom = sess[\"n_events\"].replace(0, np.nan)\n",
+    "    sess[\"ratio_view\"]   = sess[\"n_view\"]   / denom\n",
+    "    sess[\"ratio_add\"]    = sess[\"n_add\"]    / denom\n",
+    "    sess[\"ratio_remove\"] = sess[\"n_remove\"] / denom\n",
+    "    sess[\"ratio_buy\"]    = sess[\"n_buy\"]    / denom\n",
+    "    sess[\"prod_per_evt\"] = sess[\"n_products\"]  / denom\n",
+    "    sess[\"cat_per_evt\"]  = sess[\"n_categories\"] / denom\n",
+    "    sess[\"is_single_evt\"] = (sess[\"n_events\"] == 1).astype(int)\n",
+    "    sess[\"has_buy\"]    = (sess[\"n_buy\"] > 0).astype(int)\n",
+    "    sess[\"has_add\"]    = (sess[\"n_add\"] > 0).astype(int)\n",
+    "    sess[\"has_view\"]   = (sess[\"n_view\"] > 0).astype(int)\n",
+    "    sess[\"has_remove\"] = (sess[\"n_remove\"] > 0).astype(int)\n",
+    "    sess[\"cart_balance\"]    = sess[\"n_add\"] - sess[\"n_remove\"]\n",
+    "    sess[\"add_remove_ratio\"] = sess[\"n_add\"] / sess[\"n_remove\"].replace(0, np.nan)\n",
+    "\n",
+    "    # last time per event type → seconds from session end\n",
+    "    last_times = (tmp.groupby([\"user_session\",\"event_type\"])[\"event_time\"]\n",
+    "                    .max().unstack())  # columns may include 'VIEW','ADD_CART','REMOVE_CART','BUY'\n",
+    "    for name, col in [(\"view\",\"VIEW\"),(\"add\",\"ADD_CART\"),(\"remove\",\"REMOVE_CART\"),(\"buy\",\"BUY\")]:\n",
+    "        dt = (sess[\"last_time\"] - last_times.get(col)).dt.total_seconds()\n",
+    "        sess[f\"secs_since_last_{name}\"] = dt.fillna(sess[\"duration_sec\"])\n",
+    "\n",
+    "    # pre-BUY counts (before first BUY only)\n",
+    "    tmp[\"buy_seen\"] = tmp.groupby(\"user_session\")[\"is_buy\"].cumsum() > 0\n",
+    "    pre = tmp[~tmp[\"buy_seen\"]]\n",
+    "    pre_grp = pre.groupby(\"user_session\")\n",
+    "    sess[\"preBUY_view\"]   = pre_grp[\"is_view\"].sum()\n",
+    "    sess[\"preBUY_add\"]    = pre_grp[\"is_add_cart\"].sum()\n",
+    "    sess[\"preBUY_remove\"] = pre_grp[\"is_remove_cart\"].sum()\n",
+    "    sess[\"preBUY_events\"] = pre_grp[\"event_type\"].size()\n",
+    "    sess[[\"preBUY_view\",\"preBUY_add\",\"preBUY_remove\",\"preBUY_events\"]] = \\\n",
+    "        sess[[\"preBUY_view\",\"preBUY_add\",\"preBUY_remove\",\"preBUY_events\"]].fillna(0)\n",
+    "\n",
+    "    # target (constant per session)\n",
+    "    if is_train and \"session_value\" in df.columns:\n",
+    "        sess = sess.merge(df.groupby(\"user_session\")[\"session_value\"].max()\n",
+    "                          .rename(\"session_value\"), on=\"user_session\", how=\"left\")\n",
+    "\n",
+    "    # clean infs from ratios\n",
+    "    sess.replace([np.inf, -np.inf], np.nan, inplace=True)\n",
+    "    return sess\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "18cf9917",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:04.565384Z",
+     "iopub.status.busy": "2025-08-26T10:11:04.565019Z",
+     "iopub.status.idle": "2025-08-26T10:11:17.955371Z",
+     "shell.execute_reply": "2025-08-26T10:11:17.953987Z"
+    },
+    "papermill": {
+     "duration": 13.397392,
+     "end_time": "2025-08-26T10:11:17.957764",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:04.560372",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "((70736, 38), (30789, 37))"
+      ]
+     },
+     "execution_count": 5,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "train_sess = build_session_features_v2(train, is_train=True)\n",
+    "test_sess  = build_session_features_v2(test,  is_train=False)\n",
+    "\n",
+    "train_sess.shape, test_sess.shape\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "fe6fe6e3",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:17.968441Z",
+     "iopub.status.busy": "2025-08-26T10:11:17.967784Z",
+     "iopub.status.idle": "2025-08-26T10:11:18.002030Z",
+     "shell.execute_reply": "2025-08-26T10:11:18.000789Z"
+    },
+    "papermill": {
+     "duration": 0.041977,
+     "end_time": "2025-08-26T10:11:18.003862",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:17.961885",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "(61846, 8890)"
+      ]
+     },
+     "execution_count": 6,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "CUT_TRAIN_END = pd.Timestamp(\"2025-06-18 23:59:59\", tz=\"UTC\")\n",
+    "CUT_VALID_END = pd.Timestamp(\"2025-06-21 23:59:59\", tz=\"UTC\")\n",
+    "\n",
+    "tr_mask = (train_sess[\"last_time\"] <= CUT_TRAIN_END)\n",
+    "va_mask = (train_sess[\"last_time\"] > CUT_TRAIN_END) & (train_sess[\"last_time\"] <= CUT_VALID_END)\n",
+    "\n",
+    "tr_df = train_sess.loc[tr_mask].copy()\n",
+    "va_df = train_sess.loc[va_mask].copy()\n",
+    "\n",
+    "len(tr_df), len(va_df)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "271b302d",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:18.012996Z",
+     "iopub.status.busy": "2025-08-26T10:11:18.012647Z",
+     "iopub.status.idle": "2025-08-26T10:11:18.827807Z",
+     "shell.execute_reply": "2025-08-26T10:11:18.826972Z"
+    },
+    "papermill": {
+     "duration": 0.821581,
+     "end_time": "2025-08-26T10:11:18.829487",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:18.007906",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "def build_priors(events_df, sess_df, base_mask):\n",
+    "    base_sessions = set(sess_df.loc[base_mask, \"user_session\"])\n",
+    "    base_target = sess_df.loc[sess_df[\"user_session\"].isin(base_sessions),\n",
+    "                              [\"user_session\",\"session_value\"]]\n",
+    "    base_pairs = (events_df.loc[events_df[\"user_session\"].isin(base_sessions),\n",
+    "                                [\"user_session\",\"product_id\",\"category_id\"]]\n",
+    "                  .drop_duplicates())\n",
+    "    prod_prior = (base_pairs.merge(base_target, on=\"user_session\", how=\"left\")\n",
+    "                  .groupby(\"product_id\")[\"session_value\"]\n",
+    "                  .agg(prod_prior_mean=\"mean\", prod_prior_median=\"median\", prod_prior_n=\"count\")\n",
+    "                  .reset_index())\n",
+    "    cat_prior = (base_pairs.merge(base_target, on=\"user_session\", how=\"left\")\n",
+    "                 .groupby(\"category_id\")[\"session_value\"]\n",
+    "                 .agg(cat_prior_mean=\"mean\", cat_prior_median=\"median\", cat_prior_n=\"count\")\n",
+    "                 .reset_index())\n",
+    "    return prod_prior, cat_prior\n",
+    "\n",
+    "def attach_session_priors(session_df, events_df, prod_prior, cat_prior, fallback_mean):\n",
+    "    pairs = (events_df.merge(session_df[[\"user_session\"]], on=\"user_session\", how=\"inner\")\n",
+    "                     [[\"user_session\",\"product_id\",\"category_id\"]]\n",
+    "                     .drop_duplicates())\n",
+    "    pairs = (pairs.merge(prod_prior, on=\"product_id\", how=\"left\")\n",
+    "                 .merge(cat_prior, on=\"category_id\", how=\"left\"))\n",
+    "    agg = (pairs.groupby(\"user_session\")\n",
+    "                .agg({\"prod_prior_mean\":\"mean\",\n",
+    "                      \"prod_prior_median\":\"mean\",\n",
+    "                      \"prod_prior_n\":\"mean\",\n",
+    "                      \"cat_prior_mean\":\"mean\",\n",
+    "                      \"cat_prior_median\":\"mean\",\n",
+    "                      \"cat_prior_n\":\"mean\"})\n",
+    "                .reset_index()\n",
+    "                .rename(columns={\n",
+    "                    \"prod_prior_mean\":\"prod_prior_mean_mean\",\n",
+    "                    \"prod_prior_median\":\"prod_prior_median_mean\",\n",
+    "                    \"prod_prior_n\":\"prod_prior_n_mean\",\n",
+    "                    \"cat_prior_mean\":\"cat_prior_mean_mean\",\n",
+    "                    \"cat_prior_median\":\"cat_prior_median_mean\",\n",
+    "                    \"cat_prior_n\":\"cat_prior_n_mean\",\n",
+    "                }))\n",
+    "    out = session_df.merge(agg, on=\"user_session\", how=\"left\")\n",
+    "    for col in [\"prod_prior_mean_mean\",\"prod_prior_median_mean\",\"prod_prior_n_mean\",\n",
+    "                \"cat_prior_mean_mean\",\"cat_prior_median_mean\",\"cat_prior_n_mean\"]:\n",
+    "        out[col] = out[col].fillna(fallback_mean if (\"mean\" in col or \"median\" in col) else 0)\n",
+    "    return out\n",
+    "\n",
+    "# Build priors only from the train window (<= Jun 18) to keep validation clean\n",
+    "train_events = train[[\"user_session\",\"product_id\",\"category_id\"]]\n",
+    "prod_prior, cat_prior = build_priors(train_events, train_sess, base_mask=(train_sess[\"last_time\"] <= CUT_TRAIN_END))\n",
+    "\n",
+    "global_mean = tr_df[\"session_value\"].mean()\n",
+    "tr_df = attach_session_priors(tr_df, train_events, prod_prior, cat_prior, fallback_mean=global_mean)\n",
+    "va_df = attach_session_priors(va_df, train_events, prod_prior, cat_prior, fallback_mean=global_mean)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 8,
+   "id": "82d1f349",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:18.837855Z",
+     "iopub.status.busy": "2025-08-26T10:11:18.837148Z",
+     "iopub.status.idle": "2025-08-26T10:11:18.884088Z",
+     "shell.execute_reply": "2025-08-26T10:11:18.882951Z"
+    },
+    "papermill": {
+     "duration": 0.053394,
+     "end_time": "2025-08-26T10:11:18.886265",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:18.832871",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": [
+    "target = \"session_value\"\n",
+    "cat_features = [\"last_event_type\"]\n",
+    "drop_cols = [\"user_session\",\"first_time\",\"last_time\",target] + cat_features\n",
+    "num_features = [c for c in tr_df.columns if c not in drop_cols]\n",
+    "\n",
+    "# Fill NaNs in numeric\n",
+    "for df_ in (tr_df, va_df):\n",
+    "    df_[num_features] = df_[num_features].fillna(0)\n",
+    "\n",
+    "preprocess = ColumnTransformer([\n",
+    "    (\"cat\", OneHotEncoder(handle_unknown=\"ignore\", sparse_output=False), cat_features),\n",
+    "    (\"num\", \"passthrough\", num_features),\n",
+    "])\n",
+    "\n",
+    "model = HistGradientBoostingRegressor(\n",
+    "    learning_rate=0.06,\n",
+    "    max_iter=500,            # if slow, try 300 here\n",
+    "    min_samples_leaf=20,\n",
+    "    random_state=RANDOM_STATE\n",
+    ")\n",
+    "\n",
+    "pipe = Pipeline([(\"prep\", preprocess), (\"model\", model)])\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 9,
+   "id": "f6adca61",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:18.894677Z",
+     "iopub.status.busy": "2025-08-26T10:11:18.894330Z",
+     "iopub.status.idle": "2025-08-26T10:11:21.605499Z",
+     "shell.execute_reply": "2025-08-26T10:11:21.604758Z"
+    },
+    "papermill": {
+     "duration": 2.718,
+     "end_time": "2025-08-26T10:11:21.607714",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:18.889714",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Validation RMSE: 34.1793 | log1p RMSE: 0.5153 | n_train: 61846 | n_valid: 8890\n"
+     ]
+    }
+   ],
+   "source": [
+    "y_tr = np.log1p(tr_df[target].values)\n",
+    "y_va = np.log1p(va_df[target].values)\n",
+    "\n",
+    "pipe.fit(tr_df[cat_features + num_features], y_tr)\n",
+    "\n",
+    "pred_va_log = pipe.predict(va_df[cat_features + num_features])\n",
+    "pred_va = np.expm1(pred_va_log).clip(min=0)\n",
+    "\n",
+    "rmse_va = mean_squared_error(va_df[target].values, pred_va, squared=False)\n",
+    "rmse_va_log = mean_squared_error(y_va, pred_va_log, squared=False)\n",
+    "print(\"Validation RMSE:\", round(rmse_va, 4), \"| log1p RMSE:\", round(rmse_va_log, 4), \n",
+    "      \"| n_train:\", len(tr_df), \"| n_valid:\", len(va_df))\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 10,
+   "id": "acb58156",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:21.618043Z",
+     "iopub.status.busy": "2025-08-26T10:11:21.617712Z",
+     "iopub.status.idle": "2025-08-26T10:11:25.862163Z",
+     "shell.execute_reply": "2025-08-26T10:11:25.861192Z"
+    },
+    "papermill": {
+     "duration": 4.251399,
+     "end_time": "2025-08-26T10:11:25.863831",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:21.612432",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'submission_v3_priors.csv'"
+      ]
+     },
+     "execution_count": 10,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Recompute priors using ALL train sessions (≤ Jun 21)\n",
+    "prod_prior_full, cat_prior_full = build_priors(\n",
+    "    train_events, train_sess, base_mask=(train_sess[\"last_time\"] <= pd.Timestamp(\"2025-06-21 23:59:59\", tz=\"UTC\"))\n",
+    ")\n",
+    "\n",
+    "train_sess_p = attach_session_priors(\n",
+    "    train_sess.copy(), train_events, prod_prior_full, cat_prior_full, fallback_mean=train_sess[\"session_value\"].mean()\n",
+    ")\n",
+    "test_sess_p  = attach_session_priors(\n",
+    "    test_sess.copy(),  test[[\"user_session\",\"product_id\",\"category_id\"]],\n",
+    "    prod_prior_full, cat_prior_full, fallback_mean=train_sess[\"session_value\"].mean()\n",
+    ")\n",
+    "\n",
+    "num_features_full = [c for c in train_sess_p.columns if c not in [\"user_session\",\"first_time\",\"last_time\",target,\"last_event_type\"]]\n",
+    "cat_features_full = [\"last_event_type\"]\n",
+    "\n",
+    "# Fill NaNs for full frames\n",
+    "for df_ in (train_sess_p, test_sess_p):\n",
+    "    df_[num_features_full] = df_[num_features_full].fillna(0)\n",
+    "\n",
+    "final_pipe = Pipeline([\n",
+    "    (\"prep\", ColumnTransformer([\n",
+    "        (\"cat\", OneHotEncoder(handle_unknown=\"ignore\", sparse_output=False), cat_features_full),\n",
+    "        (\"num\", \"passthrough\", num_features_full),\n",
+    "    ])),\n",
+    "    (\"model\", HistGradientBoostingRegressor(\n",
+    "        learning_rate=0.06, max_iter=500, min_samples_leaf=20, random_state=RANDOM_STATE\n",
+    "    ))\n",
+    "])\n",
+    "\n",
+    "final_pipe.fit(train_sess_p[cat_features_full + num_features_full], np.log1p(train_sess_p[target].values))\n",
+    "test_pred = np.expm1(final_pipe.predict(test_sess_p[cat_features_full + num_features_full])).clip(min=0)\n",
+    "\n",
+    "sub = sample.drop(columns=[\"session_value\"]).merge(\n",
+    "    test_sess_p[[\"user_session\"]].assign(session_value=test_pred),\n",
+    "    on=\"user_session\", how=\"left\"\n",
+    ")\n",
+    "sub[\"session_value\"] = sub[\"session_value\"].fillna(sub[\"session_value\"].median())\n",
+    "\n",
+    "OUT_PATH = \"submission_v3_priors.csv\"  # name for this step\n",
+    "sub.to_csv(OUT_PATH, index=False)\n",
+    "OUT_PATH\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 11,
+   "id": "07e1021c",
+   "metadata": {
+    "execution": {
+     "iopub.execute_input": "2025-08-26T10:11:25.872532Z",
+     "iopub.status.busy": "2025-08-26T10:11:25.872221Z",
+     "iopub.status.idle": "2025-08-26T10:11:25.892137Z",
+     "shell.execute_reply": "2025-08-26T10:11:25.891112Z"
+    },
+    "papermill": {
+     "duration": 0.025936,
+     "end_time": "2025-08-26T10:11:25.893756",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:25.867820",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>user_session</th>\n",
+       "      <th>session_value</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>SESSION_164059</td>\n",
+       "      <td>169.410370</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>SESSION_109583</td>\n",
+       "      <td>50.736454</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>SESSION_171382</td>\n",
+       "      <td>43.730739</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>SESSION_137110</td>\n",
+       "      <td>51.496429</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>SESSION_146503</td>\n",
+       "      <td>175.291794</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "     user_session  session_value\n",
+       "0  SESSION_164059     169.410370\n",
+       "1  SESSION_109583      50.736454\n",
+       "2  SESSION_171382      43.730739\n",
+       "3  SESSION_137110      51.496429\n",
+       "4  SESSION_146503     175.291794"
+      ]
+     },
+     "execution_count": 11,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "sub.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "20919396",
+   "metadata": {
+    "papermill": {
+     "duration": 0.003376,
+     "end_time": "2025-08-26T10:11:25.900733",
+     "exception": false,
+     "start_time": "2025-08-26T10:11:25.897357",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kaggle": {
+   "accelerator": "none",
+   "dataSources": [
+    {
+     "databundleVersionId": 13341508,
+     "sourceId": 112016,
+     "sourceType": "competition"
+    }
+   ],
+   "dockerImageVersionId": 31089,
+   "isGpuEnabled": false,
+   "isInternetEnabled": true,
+   "language": "python",
+   "sourceType": "notebook"
+  },
+  "kernelspec": {
+   "display_name": "Python 3",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.11.13"
+  },
+  "papermill": {
+   "default_parameters": {},
+   "duration": 33.744781,
+   "end_time": "2025-08-26T10:11:26.827388",
+   "environment_variables": {},
+   "exception": null,
+   "input_path": "__notebook__.ipynb",
+   "output_path": "__notebook__.ipynb",
+   "parameters": {},
+   "start_time": "2025-08-26T10:10:53.082607",
+   "version": "2.6.0"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
