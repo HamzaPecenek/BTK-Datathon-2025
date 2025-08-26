@@ -3,19 +3,19 @@
   {
    "cell_type": "code",
    "execution_count": 1,
-   "id": "c34e1b30",
+   "id": "cbc3cc0a",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:14:45.256514Z",
-     "iopub.status.busy": "2025-08-25T19:14:45.255616Z",
-     "iopub.status.idle": "2025-08-25T19:14:49.444682Z",
-     "shell.execute_reply": "2025-08-25T19:14:49.443696Z"
+     "iopub.execute_input": "2025-08-26T09:51:26.399998Z",
+     "iopub.status.busy": "2025-08-26T09:51:26.399685Z",
+     "iopub.status.idle": "2025-08-26T09:51:30.106534Z",
+     "shell.execute_reply": "2025-08-26T09:51:30.105687Z"
     },
     "papermill": {
-     "duration": 4.195092,
-     "end_time": "2025-08-25T19:14:49.446452",
+     "duration": 3.712885,
+     "end_time": "2025-08-26T09:51:30.108168",
      "exception": false,
-     "start_time": "2025-08-25T19:14:45.251360",
+     "start_time": "2025-08-26T09:51:26.395283",
      "status": "completed"
     },
     "tags": []
@@ -40,19 +40,19 @@
   {
    "cell_type": "code",
    "execution_count": 2,
-   "id": "c84f630d",
+   "id": "d37d332f",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:14:49.452933Z",
-     "iopub.status.busy": "2025-08-25T19:14:49.452520Z",
-     "iopub.status.idle": "2025-08-25T19:14:49.457164Z",
-     "shell.execute_reply": "2025-08-25T19:14:49.456405Z"
+     "iopub.execute_input": "2025-08-26T09:51:30.115115Z",
+     "iopub.status.busy": "2025-08-26T09:51:30.114668Z",
+     "iopub.status.idle": "2025-08-26T09:51:30.119587Z",
+     "shell.execute_reply": "2025-08-26T09:51:30.118717Z"
     },
     "papermill": {
-     "duration": 0.009116,
-     "end_time": "2025-08-25T19:14:49.458485",
+     "duration": 0.009687,
+     "end_time": "2025-08-26T09:51:30.120969",
      "exception": false,
-     "start_time": "2025-08-25T19:14:49.449369",
+     "start_time": "2025-08-26T09:51:30.111282",
      "status": "completed"
     },
     "tags": []
@@ -69,19 +69,19 @@
   {
    "cell_type": "code",
    "execution_count": 3,
-   "id": "7cccaaf2",
+   "id": "fc892d6c",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:14:49.464818Z",
-     "iopub.status.busy": "2025-08-25T19:14:49.464507Z",
-     "iopub.status.idle": "2025-08-25T19:14:50.541002Z",
-     "shell.execute_reply": "2025-08-25T19:14:50.540235Z"
+     "iopub.execute_input": "2025-08-26T09:51:30.126822Z",
+     "iopub.status.busy": "2025-08-26T09:51:30.126554Z",
+     "iopub.status.idle": "2025-08-26T09:51:31.127482Z",
+     "shell.execute_reply": "2025-08-26T09:51:31.126611Z"
     },
     "papermill": {
-     "duration": 1.081302,
-     "end_time": "2025-08-25T19:14:50.542500",
+     "duration": 1.005353,
+     "end_time": "2025-08-26T09:51:31.128906",
      "exception": false,
-     "start_time": "2025-08-25T19:14:49.461198",
+     "start_time": "2025-08-26T09:51:30.123553",
      "status": "completed"
     },
     "tags": []
@@ -113,34 +113,35 @@
   {
    "cell_type": "code",
    "execution_count": 4,
-   "id": "f38d6f27",
+   "id": "03837d26",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:14:50.548926Z",
-     "iopub.status.busy": "2025-08-25T19:14:50.548616Z",
-     "iopub.status.idle": "2025-08-25T19:14:50.559868Z",
-     "shell.execute_reply": "2025-08-25T19:14:50.558973Z"
+     "iopub.execute_input": "2025-08-26T09:51:31.137317Z",
+     "iopub.status.busy": "2025-08-26T09:51:31.136651Z",
+     "iopub.status.idle": "2025-08-26T09:51:31.150273Z",
+     "shell.execute_reply": "2025-08-26T09:51:31.149467Z"
     },
     "papermill": {
-     "duration": 0.016115,
-     "end_time": "2025-08-25T19:14:50.561344",
+     "duration": 0.018347,
+     "end_time": "2025-08-26T09:51:31.151535",
      "exception": false,
-     "start_time": "2025-08-25T19:14:50.545229",
+     "start_time": "2025-08-26T09:51:31.133188",
      "status": "completed"
     },
     "tags": []
    },
    "outputs": [],
    "source": [
-    "# Cell 4\n",
+    "# Cell 4 (REPLACE): session features v2 – cart & timing & preBUY\n",
     "def build_session_features(df: pd.DataFrame, is_train: bool):\n",
-    "    tmp = df.copy()\n",
+    "    tmp = df.copy().sort_values([\"user_session\",\"event_time\"], kind=\"mergesort\")\n",
+    "    # event flags\n",
     "    tmp[\"is_view\"]        = (tmp[\"event_type\"]==\"VIEW\").astype(int)\n",
     "    tmp[\"is_add_cart\"]    = (tmp[\"event_type\"]==\"ADD_CART\").astype(int)\n",
     "    tmp[\"is_remove_cart\"] = (tmp[\"event_type\"]==\"REMOVE_CART\").astype(int)\n",
     "    tmp[\"is_buy\"]         = (tmp[\"event_type\"]==\"BUY\").astype(int)\n",
-    "    tmp = tmp.sort_values([\"user_session\",\"event_time\"], kind=\"mergesort\")\n",
     "\n",
+    "    # per-session aggregates\n",
     "    sess = tmp.groupby(\"user_session\").agg(\n",
     "        first_time=(\"event_time\",\"min\"),\n",
     "        last_time =(\"event_time\",\"max\"),\n",
@@ -154,12 +155,14 @@
     "        last_event_type=(\"event_type\",\"last\"),\n",
     "    )\n",
     "\n",
+    "    # basic time features\n",
     "    sess[\"duration_sec\"] = (sess[\"last_time\"] - sess[\"first_time\"]).dt.total_seconds().fillna(0)\n",
     "    sess[\"hour_first\"]   = sess[\"first_time\"].dt.hour\n",
     "    sess[\"hour_last\"]    = sess[\"last_time\"].dt.hour\n",
     "    sess[\"wday_first\"]   = sess[\"first_time\"].dt.weekday  # 0=Mon\n",
     "    sess[\"wday_last\"]    = sess[\"last_time\"].dt.weekday\n",
     "\n",
+    "    # ratios & cart balance\n",
     "    denom = sess[\"n_events\"].replace(0, np.nan)\n",
     "    sess[\"ratio_view\"]   = sess[\"n_view\"]   / denom\n",
     "    sess[\"ratio_add\"]    = sess[\"n_add\"]    / denom\n",
@@ -168,52 +171,61 @@
     "    sess[\"prod_per_evt\"] = sess[\"n_products\"]  / denom\n",
     "    sess[\"cat_per_evt\"]  = sess[\"n_categories\"] / denom\n",
     "    sess[\"is_single_evt\"] = (sess[\"n_events\"] == 1).astype(int)\n",
-    "    sess[\"has_buy\"]       = (sess[\"n_buy\"] > 0).astype(int)\n",
+    "    sess[\"has_buy\"]    = (sess[\"n_buy\"] > 0).astype(int)\n",
+    "    sess[\"has_add\"]    = (sess[\"n_add\"] > 0).astype(int)\n",
+    "    sess[\"has_view\"]   = (sess[\"n_view\"] > 0).astype(int)\n",
+    "    sess[\"has_remove\"] = (sess[\"n_remove\"] > 0).astype(int)\n",
+    "    sess[\"cart_balance\"] = sess[\"n_add\"] - sess[\"n_remove\"]\n",
+    "    sess[\"add_remove_ratio\"] = sess[\"n_add\"] / sess[\"n_remove\"].replace(0, np.nan)\n",
     "\n",
-    "    # first BUY position ratio [0..1], -1 if no BUY\n",
-    "    def first_buy_pos01(g):\n",
-    "        idx = np.where(g[\"event_type\"].values == \"BUY\")[0]\n",
-    "        if len(idx)==0: return -1.0\n",
-    "        return idx[0] / max(len(g)-1, 1)\n",
-    "    sess[\"first_buy_pos01\"] = tmp.groupby(\"user_session\").apply(first_buy_pos01).reindex(sess.index).astype(float)\n",
+    "    # last time per event type via pivot; compute seconds from session end\n",
+    "    last_times = (tmp.groupby([\"user_session\",\"event_type\"])[\"event_time\"]\n",
+    "                    .max().unstack())  # columns: e.g., 'VIEW','ADD_CART','REMOVE_CART','BUY'\n",
+    "    for name, col in [(\"view\",\"VIEW\"),(\"add\",\"ADD_CART\"),(\"remove\",\"REMOVE_CART\"),(\"buy\",\"BUY\")]:\n",
+    "        dt = (sess[\"last_time\"] - last_times.get(col)).dt.total_seconds()\n",
+    "        sess[f\"secs_since_last_{name}\"] = dt.fillna(sess[\"duration_sec\"])\n",
     "\n",
+    "    # pre-BUY counts using cumulative flag (before the first BUY only)\n",
+    "    tmp[\"buy_seen\"] = tmp.groupby(\"user_session\")[\"is_buy\"].cumsum() > 0\n",
+    "    pre_mask = ~tmp[\"buy_seen\"]\n",
+    "    pre_grp = tmp[pre_mask].groupby(\"user_session\")\n",
+    "    sess[\"preBUY_view\"]   = pre_grp[\"is_view\"].sum()\n",
+    "    sess[\"preBUY_add\"]    = pre_grp[\"is_add_cart\"].sum()\n",
+    "    sess[\"preBUY_remove\"] = pre_grp[\"is_remove_cart\"].sum()\n",
+    "    sess[\"preBUY_events\"] = pre_grp[\"event_type\"].size()\n",
+    "    sess[[\"preBUY_view\",\"preBUY_add\",\"preBUY_remove\",\"preBUY_events\"]] = \\\n",
+    "        sess[[\"preBUY_view\",\"preBUY_add\",\"preBUY_remove\",\"preBUY_events\"]].fillna(0)\n",
+    "\n",
+    "    # target (constant per session)\n",
     "    if is_train and \"session_value\" in tmp.columns:\n",
     "        sess[\"session_value\"] = tmp.groupby(\"user_session\")[\"session_value\"].max()\n",
     "\n",
-    "    return sess.reset_index()\n"
+    "    sess.replace([np.inf, -np.inf], np.nan, inplace=True)\n",
+    "    return sess.reset_index()\n",
+    "\n"
    ]
   },
   {
    "cell_type": "code",
    "execution_count": 5,
-   "id": "1b71c76c",
+   "id": "27341350",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:14:50.567573Z",
-     "iopub.status.busy": "2025-08-25T19:14:50.567292Z",
-     "iopub.status.idle": "2025-08-25T19:15:07.785880Z",
-     "shell.execute_reply": "2025-08-25T19:15:07.784611Z"
+     "iopub.execute_input": "2025-08-26T09:51:31.157154Z",
+     "iopub.status.busy": "2025-08-26T09:51:31.156838Z",
+     "iopub.status.idle": "2025-08-26T09:51:41.855172Z",
+     "shell.execute_reply": "2025-08-26T09:51:41.854335Z"
     },
     "papermill": {
-     "duration": 17.223339,
-     "end_time": "2025-08-25T19:15:07.787419",
+     "duration": 10.7025,
+     "end_time": "2025-08-26T09:51:41.856520",
      "exception": false,
-     "start_time": "2025-08-25T19:14:50.564080",
+     "start_time": "2025-08-26T09:51:31.154020",
      "status": "completed"
     },
     "tags": []
    },
    "outputs": [
-    {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      "/tmp/ipykernel_14/2924465122.py:44: DeprecationWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.\n",
-      "  sess[\"first_buy_pos01\"] = tmp.groupby(\"user_session\").apply(first_buy_pos01).reindex(sess.index).astype(float)\n",
-      "/tmp/ipykernel_14/2924465122.py:44: DeprecationWarning: DataFrameGroupBy.apply operated on the grouping columns. This behavior is deprecated, and in a future version of pandas the grouping columns will be excluded from the operation. Either pass `include_groups=False` to exclude the groupings or explicitly select the grouping columns after groupby to silence this warning.\n",
-      "  sess[\"first_buy_pos01\"] = tmp.groupby(\"user_session\").apply(first_buy_pos01).reindex(sess.index).astype(float)\n"
-     ]
-    },
     {
      "data": {
       "text/plain": [
@@ -246,19 +258,19 @@
   {
    "cell_type": "code",
    "execution_count": 6,
-   "id": "ef3df55a",
+   "id": "a1ef754f",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:15:07.794098Z",
-     "iopub.status.busy": "2025-08-25T19:15:07.793738Z",
-     "iopub.status.idle": "2025-08-25T19:15:07.846776Z",
-     "shell.execute_reply": "2025-08-25T19:15:07.845795Z"
+     "iopub.execute_input": "2025-08-26T09:51:41.863012Z",
+     "iopub.status.busy": "2025-08-26T09:51:41.862361Z",
+     "iopub.status.idle": "2025-08-26T09:51:41.945057Z",
+     "shell.execute_reply": "2025-08-26T09:51:41.944276Z"
     },
     "papermill": {
-     "duration": 0.058334,
-     "end_time": "2025-08-25T19:15:07.848620",
+     "duration": 0.087347,
+     "end_time": "2025-08-26T09:51:41.946539",
      "exception": false,
-     "start_time": "2025-08-25T19:15:07.790286",
+     "start_time": "2025-08-26T09:51:41.859192",
      "status": "completed"
     },
     "tags": []
@@ -293,19 +305,19 @@
   {
    "cell_type": "code",
    "execution_count": 7,
-   "id": "03efc1b4",
+   "id": "0ae205c9",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:15:07.855918Z",
-     "iopub.status.busy": "2025-08-25T19:15:07.855088Z",
-     "iopub.status.idle": "2025-08-25T19:15:09.515906Z",
-     "shell.execute_reply": "2025-08-25T19:15:09.515242Z"
+     "iopub.execute_input": "2025-08-26T09:51:41.952855Z",
+     "iopub.status.busy": "2025-08-26T09:51:41.952589Z",
+     "iopub.status.idle": "2025-08-26T09:51:43.956630Z",
+     "shell.execute_reply": "2025-08-26T09:51:43.956094Z"
     },
     "papermill": {
-     "duration": 1.667946,
-     "end_time": "2025-08-25T19:15:09.519444",
+     "duration": 2.008423,
+     "end_time": "2025-08-26T09:51:43.957811",
      "exception": false,
-     "start_time": "2025-08-25T19:15:07.851498",
+     "start_time": "2025-08-26T09:51:41.949388",
      "status": "completed"
     },
     "tags": []
@@ -323,7 +335,7 @@
      "name": "stdout",
      "output_type": "stream",
      "text": [
-      "Validation RMSE: 31.3098 | log1p RMSE: 0.4803\n"
+      "Validation RMSE: 31.2098 | log1p RMSE: 0.4803\n"
      ]
     }
    ],
@@ -345,19 +357,19 @@
   {
    "cell_type": "code",
    "execution_count": 8,
-   "id": "d390ceef",
+   "id": "78b888d4",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:15:09.529670Z",
-     "iopub.status.busy": "2025-08-25T19:15:09.528477Z",
-     "iopub.status.idle": "2025-08-25T19:15:11.138002Z",
-     "shell.execute_reply": "2025-08-25T19:15:11.137183Z"
+     "iopub.execute_input": "2025-08-26T09:51:43.967593Z",
+     "iopub.status.busy": "2025-08-26T09:51:43.967328Z",
+     "iopub.status.idle": "2025-08-26T09:51:46.231079Z",
+     "shell.execute_reply": "2025-08-26T09:51:46.230059Z"
     },
     "papermill": {
-     "duration": 1.616127,
-     "end_time": "2025-08-25T19:15:11.139381",
+     "duration": 2.269227,
+     "end_time": "2025-08-26T09:51:46.232423",
      "exception": false,
-     "start_time": "2025-08-25T19:15:09.523254",
+     "start_time": "2025-08-26T09:51:43.963196",
      "status": "completed"
     },
     "tags": []
@@ -400,27 +412,27 @@
        "    <tr>\n",
        "      <th>0</th>\n",
        "      <td>SESSION_164059</td>\n",
-       "      <td>186.507806</td>\n",
+       "      <td>189.137550</td>\n",
        "    </tr>\n",
        "    <tr>\n",
        "      <th>1</th>\n",
        "      <td>SESSION_109583</td>\n",
-       "      <td>47.791287</td>\n",
+       "      <td>47.107182</td>\n",
        "    </tr>\n",
        "    <tr>\n",
        "      <th>2</th>\n",
        "      <td>SESSION_171382</td>\n",
-       "      <td>40.467002</td>\n",
+       "      <td>40.370724</td>\n",
        "    </tr>\n",
        "    <tr>\n",
        "      <th>3</th>\n",
        "      <td>SESSION_137110</td>\n",
-       "      <td>29.531657</td>\n",
+       "      <td>28.275005</td>\n",
        "    </tr>\n",
        "    <tr>\n",
        "      <th>4</th>\n",
        "      <td>SESSION_146503</td>\n",
-       "      <td>171.011646</td>\n",
+       "      <td>174.487325</td>\n",
        "    </tr>\n",
        "  </tbody>\n",
        "</table>\n",
@@ -428,11 +440,11 @@
       ],
       "text/plain": [
        "     user_session  session_value\n",
-       "0  SESSION_164059     186.507806\n",
-       "1  SESSION_109583      47.791287\n",
-       "2  SESSION_171382      40.467002\n",
-       "3  SESSION_137110      29.531657\n",
-       "4  SESSION_146503     171.011646"
+       "0  SESSION_164059     189.137550\n",
+       "1  SESSION_109583      47.107182\n",
+       "2  SESSION_171382      40.370724\n",
+       "3  SESSION_137110      28.275005\n",
+       "4  SESSION_146503     174.487325"
       ]
      },
      "execution_count": 8,
@@ -456,19 +468,19 @@
   {
    "cell_type": "code",
    "execution_count": 9,
-   "id": "d33d5e87",
+   "id": "dec741cc",
    "metadata": {
     "execution": {
-     "iopub.execute_input": "2025-08-25T19:15:11.146426Z",
-     "iopub.status.busy": "2025-08-25T19:15:11.146135Z",
-     "iopub.status.idle": "2025-08-25T19:15:11.236677Z",
-     "shell.execute_reply": "2025-08-25T19:15:11.235868Z"
+     "iopub.execute_input": "2025-08-26T09:51:46.239160Z",
+     "iopub.status.busy": "2025-08-26T09:51:46.238857Z",
+     "iopub.status.idle": "2025-08-26T09:51:46.325269Z",
+     "shell.execute_reply": "2025-08-26T09:51:46.324390Z"
     },
     "papermill": {
-     "duration": 0.095707,
-     "end_time": "2025-08-25T19:15:11.238183",
+     "duration": 0.091371,
+     "end_time": "2025-08-26T09:51:46.326762",
      "exception": false,
-     "start_time": "2025-08-25T19:15:11.142476",
+     "start_time": "2025-08-26T09:51:46.235391",
      "status": "completed"
     },
     "tags": []
@@ -477,7 +489,7 @@
     {
      "data": {
       "text/plain": [
-       "'submission.csv'"
+       "'submission_main2.csv'"
       ]
      },
      "execution_count": 9,
@@ -487,10 +499,27 @@
    ],
    "source": [
     "# Cell 9\n",
-    "OUT_PATH = \"submission.csv\"\n",
+    "OUT_PATH = \"submission_main2.csv\"\n",
     "sub.to_csv(OUT_PATH, index=False)\n",
     "OUT_PATH\n"
    ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "2f0dfb4e",
+   "metadata": {
+    "papermill": {
+     "duration": 0.002633,
+     "end_time": "2025-08-26T09:51:46.332450",
+     "exception": false,
+     "start_time": "2025-08-26T09:51:46.329817",
+     "status": "completed"
+    },
+    "tags": []
+   },
+   "outputs": [],
+   "source": []
   }
  ],
  "metadata": {
@@ -528,14 +557,14 @@
   },
   "papermill": {
    "default_parameters": {},
-   "duration": 32.428216,
-   "end_time": "2025-08-25T19:15:11.961808",
+   "duration": 25.820691,
+   "end_time": "2025-08-26T09:51:47.053784",
    "environment_variables": {},
    "exception": null,
    "input_path": "__notebook__.ipynb",
    "output_path": "__notebook__.ipynb",
    "parameters": {},
-   "start_time": "2025-08-25T19:14:39.533592",
+   "start_time": "2025-08-26T09:51:21.233093",
    "version": "2.6.0"
   }
  },
